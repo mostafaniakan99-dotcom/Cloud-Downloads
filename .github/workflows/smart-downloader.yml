@@ -125,8 +125,12 @@ jobs:
             fi
           }
 
+          is_ytdlp_supported() {
+            yt-dlp --simulate --no-playlist "$URL" >/dev/null 2>&1
+          }
+
           download_ytdlp() {
-            echo "Detected YouTube URL"
+            echo "Using yt-dlp for supported URL"
 
             yt-dlp \
               -f "bv*+ba/b" \
@@ -149,9 +153,10 @@ jobs:
             mv "$DOWNLOADED_FILE" temp_download
           }
 
-          if [[ "$URL" == *"youtube.com"* || "$URL" == *"youtu.be"* ]]; then
+          if is_ytdlp_supported; then
             download_ytdlp
           else
+            echo "URL is not supported by yt-dlp; using direct download"
             download_direct
           fi
 
