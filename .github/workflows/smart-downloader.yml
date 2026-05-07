@@ -30,11 +30,20 @@ jobs:
 
       - name: Setup yt-dlp
         uses: AnimMouse/setup-yt-dlp@v3
+        
+      - name: Update yt-dlp
+        run: |
+          python3 -m pip install -U yt-dlp
+          
+      - name: Setup cookies (YouTube)
+        run: |
+          mkdir -p ~/.cache/yt-dlp/youtube
+          echo "${{ secrets.YOUTUBE_COOKIES }}" > ~/.cache/yt-dlp/youtube/cookies.txt
 
-      - name: Setup yt-dlp cookies
-        uses: AnimMouse/setup-yt-dlp/cookies@v3
-        with:
-          cookies: ${{ secrets.YOUTUBE_COOKIES }}
+      - name: Setup cookies (Pornhub)
+        run: |
+          mkdir -p ~/.cache/yt-dlp/pornhub
+          echo "${{ secrets.PORNHUB_COOKIES }}" > ~/.cache/yt-dlp/pornhub/cookies.txt
 
       - name: Process File
         shell: bash
@@ -57,78 +66,28 @@ jobs:
             fi
 
             curl -L --fail --retry 5 \
-              -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+              -A "Mozilla/5.0" \
               --progress-bar \
               -D headers.txt \
               -o "temp_download" \
               "$URL"
 
-            CONTENT_TYPE=$(grep -i "^content-type:" headers.txt | tail -n 1 | cut -d":" -f2- | tr -d "\r" | xargs)
-            MIME_TYPE=$(file --mime-type -b temp_download)
-
             SELECTED_EXT="$URL_EXT"
-
-            if [ -z "$SELECTED_EXT" ] || [ ${#SELECTED_EXT} -gt 5 ]; then
-              case "$CONTENT_TYPE|$MIME_TYPE" in
-                *application/zip*|*application/x-zip*|*application/x-zip-compressed*)
-                  SELECTED_EXT="zip"
-                  ;;
-                *application/pdf*)
-                  SELECTED_EXT="pdf"
-                  ;;
-                *video/mp4*)
-                  SELECTED_EXT="mp4"
-                  ;;
-                *video/x-matroska*)
-                  SELECTED_EXT="mkv"
-                  ;;
-                *video/x-msvideo*)
-                  SELECTED_EXT="avi"
-                  ;;
-                *video/webm*)
-                  SELECTED_EXT="webm"
-                  ;;
-                *audio/mpeg*)
-                  SELECTED_EXT="mp3"
-                  ;;
-                *audio/flac*)
-                  SELECTED_EXT="flac"
-                  ;;
-                *audio/wav*|*audio/x-wav*)
-                  SELECTED_EXT="wav"
-                  ;;
-                *image/jpeg*)
-                  SELECTED_EXT="jpg"
-                  ;;
-                *image/png*)
-                  SELECTED_EXT="png"
-                  ;;
-                *image/webp*)
-                  SELECTED_EXT="webp"
-                  ;;
-                *application/x-rar*)
-                  SELECTED_EXT="rar"
-                  ;;
-                *application/x-7z-compressed*)
-                  SELECTED_EXT="7z"
-                  ;;
-                *application/x-tar*)
-                  SELECTED_EXT="tar"
-                  ;;
-                *application/gzip*)
-                  SELECTED_EXT="gz"
-                  ;;
-                *)
-                  SELECTED_EXT="bin"
-                  ;;
-              esac
+            if [ -z "$SELECTED_EXT" ]; then
+              SELECTED_EXT="bin"
             fi
           }
 
           download_ytdlp() {
-            echo "Detected YouTube URL"
+            echo "Detected YouTube/Pornhub URL"
+
+            COOKIE_FILE="~/.cache/yt-dlp/youtube/cookies.txt"
+            if [[ "$URL" == *"pornhub.com"* ]]; then
+              COOKIE_FILE="~/.cache/yt-dlp/pornhub/cookies.txt"
+            fi
 
             yt-dlp \
+              --cookies "$COOKIE_FILE" \
               -f "bv*+ba/b" \
               --merge-output-format mp4 \
               --no-playlist \
@@ -138,7 +97,7 @@ jobs:
             DOWNLOADED_FILE=$(find . -maxdepth 1 -name "temp_download.*" | head -n 1)
 
             if [ -z "$DOWNLOADED_FILE" ]; then
-              echo "yt-dlp failed to produce a file"
+              echo "yt-dlp failed"
               exit 1
             fi
 
@@ -149,7 +108,7 @@ jobs:
             mv "$DOWNLOADED_FILE" temp_download
           }
 
-          if [[ "$URL" == *"youtube.com"* || "$URL" == *"youtu.be"* ]]; then
+          if [[ "$URL" == *"youtube.com"* || "$URL" == *"youtu.be"* || "$URL" == *"pornhub.com"* ]]; then
             download_ytdlp
           else
             download_direct
@@ -158,11 +117,7 @@ jobs:
           if [ "$SAFE_MODE" == "true" ]; then
             FINAL_FILE="$FOLDER.$SELECTED_EXT"
           else
-            if [ -n "$NAME_NO_EXT" ] && [ "$NAME_NO_EXT" != "$RAW_NAME" ]; then
-              FINAL_FILE="$NAME_NO_EXT.$SELECTED_EXT"
-            else
-              FINAL_FILE="$FOLDER.$SELECTED_EXT"
-            fi
+            FINAL_FILE="$NAME_NO_EXT.$SELECTED_EXT"
           fi
 
           mkdir -p wrap_dir
@@ -187,9 +142,6 @@ jobs:
           git config user.email "bot@octofetch.local"
 
           git pull origin main || true
-
           git add downloads/
-
           git commit -m "Add $FOLDER ZIP Archive" || echo "No changes"
-
           git push
