@@ -193,8 +193,17 @@ jobs:
 
           git pull origin main || true
 
-          git add downloads/
+          for file in downloads/$FOLDER/*; do
+            if [ -f "$file" ]; then
+              BASENAME=$(basename "$file")
 
-          git commit -m "Add $FOLDER ZIP Archive" || echo "No changes"
+              git add "$file"
 
-          git push
+              git commit -m "Add $BASENAME" || {
+                echo "No changes for $BASENAME"
+                continue
+              }
+
+              git push
+            fi
+          done
