@@ -73,8 +73,62 @@ jobs:
                 *application/zip*|*application/x-zip*|*application/x-zip-compressed*)
                   SELECTED_EXT="zip"
                   ;;
+                *application/x-zip*)
+                  SELECTED_EXT="zip"
+                  ;;
+                *application/x-apple-ios-ipa*|*application/vnd.iphone*)
+                  SELECTED_EXT="ipa"
+                  ;;
+                *application/vnd.android.package-archive*)
+                  SELECTED_EXT="apk"
+                  ;;
+                *application/octet-stream*android*)
+                  SELECTED_EXT="apk"
+                  ;;
+                *application/vnd.android.apex*)
+                  SELECTED_EXT="apex"
+                  ;;
+                *application/x-xz*)
+                  SELECTED_EXT="xz"
+                  ;;
+                *application/zstd*|*application/x-zstd*)
+                  SELECTED_EXT="zst"
+                  ;;
+                *application/x-bzip2*)
+                  SELECTED_EXT="bz2"
+                  ;;
                 *application/pdf*)
                   SELECTED_EXT="pdf"
+                  ;;
+                *text/plain*)
+                  SELECTED_EXT="txt"
+                  ;;
+                *text/csv*)
+                  SELECTED_EXT="csv"
+                  ;;
+                *application/json*)
+                  SELECTED_EXT="json"
+                  ;;
+                *application/xml*|*text/xml*)
+                  SELECTED_EXT="xml"
+                  ;;
+                *application/vnd.openxmlformats-officedocument.wordprocessingml.document*)
+                  SELECTED_EXT="docx"
+                  ;;
+                *application/msword*)
+                  SELECTED_EXT="doc"
+                  ;;
+                *application/vnd.openxmlformats-officedocument.spreadsheetml.sheet*)
+                  SELECTED_EXT="xlsx"
+                  ;;
+                *application/vnd.ms-excel*)
+                  SELECTED_EXT="xls"
+                  ;;
+                *application/vnd.openxmlformats-officedocument.presentationml.presentation*)
+                  SELECTED_EXT="pptx"
+                  ;;
+                *application/vnd.ms-powerpoint*)
+                  SELECTED_EXT="ppt"
                   ;;
                 *video/mp4*)
                   SELECTED_EXT="mp4"
@@ -88,6 +142,12 @@ jobs:
                 *video/webm*)
                   SELECTED_EXT="webm"
                   ;;
+                *video/quicktime*)
+                  SELECTED_EXT="mov"
+                  ;;
+                *video/x-ms-wmv*)
+                  SELECTED_EXT="wmv"
+                  ;;
                 *audio/mpeg*)
                   SELECTED_EXT="mp3"
                   ;;
@@ -96,6 +156,12 @@ jobs:
                   ;;
                 *audio/wav*|*audio/x-wav*)
                   SELECTED_EXT="wav"
+                  ;;
+                *audio/mp4*)
+                  SELECTED_EXT="m4a"
+                  ;;
+                *audio/ogg*)
+                  SELECTED_EXT="ogg"
                   ;;
                 *image/jpeg*)
                   SELECTED_EXT="jpg"
@@ -106,17 +172,71 @@ jobs:
                 *image/webp*)
                   SELECTED_EXT="webp"
                   ;;
+                *image/gif*)
+                  SELECTED_EXT="gif"
+                  ;;
+                *image/svg+xml*)
+                  SELECTED_EXT="svg"
+                  ;;
                 *application/x-rar*)
                   SELECTED_EXT="rar"
                   ;;
                 *application/x-7z-compressed*)
                   SELECTED_EXT="7z"
                   ;;
+                *application/vnd.debian.binary-package*|*application/x-debian-package*)
+                  SELECTED_EXT="deb"
+                  ;;
+                *application/x-rpm*)
+                  SELECTED_EXT="rpm"
+                  ;;
+                *application/vnd.snap*)
+                  SELECTED_EXT="snap"
+                  ;;
+                *application/x-appimage*)
+                  SELECTED_EXT="appimage"
+                  ;;
+                *application/x-archive*)
+                  SELECTED_EXT="a"
+                  ;;
+                *application/x-msdownload*|*application/x-dosexec*)
+                  SELECTED_EXT="exe"
+                  ;;
+                *application/x-msi*|*application/x-ole-storage*)
+                  SELECTED_EXT="msi"
+                  ;;
+                *application/vnd.microsoft.portable-executable*)
+                  SELECTED_EXT="exe"
+                  ;;
+                *application/x-ms-shortcut*)
+                  SELECTED_EXT="lnk"
+                  ;;
+                *application/x-iso9660-image*)
+                  SELECTED_EXT="iso"
+                  ;;
+                *application/x-apple-diskimage*)
+                  SELECTED_EXT="dmg"
+                  ;;
+                *application/x-mach-binary*)
+                  SELECTED_EXT="mach-o"
+                  ;;
+                *application/x-pkg*)
+                  SELECTED_EXT="pkg"
+                  ;;
                 *application/x-tar*)
                   SELECTED_EXT="tar"
                   ;;
                 *application/gzip*)
                   SELECTED_EXT="gz"
+                  ;;
+                *application/x-gtar*)
+                  SELECTED_EXT="tar"
+                  ;;
+                *application/java-archive*)
+                  SELECTED_EXT="jar"
+                  ;;
+                *application/x-elf*)
+                  SELECTED_EXT="elf"
                   ;;
                 *)
                   SELECTED_EXT="bin"
