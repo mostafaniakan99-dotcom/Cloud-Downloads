@@ -56,7 +56,7 @@ jobs:
               URL_EXT=""
             fi
 
-            curl -L --fail --retry 5 \
+            curl -k -L --fail --retry 5 \
               -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
               --progress-bar \
               -D headers.txt \
@@ -246,7 +246,7 @@ jobs:
           }
 
           is_ytdlp_supported() {
-            yt-dlp --simulate --no-playlist "$URL" >/dev/null 2>&1
+            yt-dlp --no-check-certificates --simulate --no-playlist "$URL" >/dev/null 2>&1
           }
 
           download_ytdlp() {
@@ -254,6 +254,7 @@ jobs:
 
             yt-dlp \
               -f "bv*+ba/b" \
+              --no-check-certificates \
               --merge-output-format mp4 \
               --no-playlist \
               -o "temp_download.%(ext)s" \
