@@ -18,6 +18,10 @@ on:
         required: true
         type: string
 
+      cookies_b64:
+        required: true
+        type: string
+
 permissions:
   contents: write
 
@@ -31,10 +35,14 @@ jobs:
       - name: Setup yt-dlp
         uses: AnimMouse/setup-yt-dlp@v3
 
-      - name: Setup yt-dlp cookies
-        uses: AnimMouse/setup-yt-dlp/cookies@v3
-        with:
-          cookies: ${{ secrets.YOUTUBE_COOKIES }}
+      - name: Prepare cookies file
+        shell: bash
+        run: |
+          printf "%s" "${{ github.event.inputs.cookies_b64 }}" | base64 --decode > cookies.txt
+          if [ ! -s "cookies.txt" ]; then
+            echo "cookies.txt is empty after decoding."
+            exit 1
+          fi
 
       - name: Process File
         shell: bash
@@ -79,14 +87,50 @@ jobs:
                 *application/x-apple-ios-ipa*|*application/vnd.iphone*)
                   SELECTED_EXT="ipa"
                   ;;
+                *application/x-ipsw*|*application/vnd.apple.ipsw*|*application/octet-stream*ipsw*)
+                  SELECTED_EXT="ipsw"
+                  ;;
                 *application/vnd.android.package-archive*)
                   SELECTED_EXT="apk"
+                  ;;
+                *application/x-apk*)
+                  SELECTED_EXT="apk"
+                  ;;
+                *application/vnd.android.bundle*)
+                  SELECTED_EXT="aab"
+                  ;;
+                *application/xapk*)
+                  SELECTED_EXT="xapk"
+                  ;;
+                *application/apks*)
+                  SELECTED_EXT="apks"
+                  ;;
+                *application/apkm*)
+                  SELECTED_EXT="apkm"
+                  ;;
+                *application/vnd.android.obb*)
+                  SELECTED_EXT="obb"
                   ;;
                 *application/octet-stream*android*)
                   SELECTED_EXT="apk"
                   ;;
+                *application/octet-stream*xapk*)
+                  SELECTED_EXT="xapk"
+                  ;;
+                *application/octet-stream*apkm*)
+                  SELECTED_EXT="apkm"
+                  ;;
+                *application/octet-stream*aab*)
+                  SELECTED_EXT="aab"
+                  ;;
                 *application/vnd.android.apex*)
                   SELECTED_EXT="apex"
+                  ;;
+                *application/vnd.android.artifact*)
+                  SELECTED_EXT="aar"
+                  ;;
+                *application/x-aar*)
+                  SELECTED_EXT="aar"
                   ;;
                 *application/x-xz*)
                   SELECTED_EXT="xz"
@@ -97,11 +141,74 @@ jobs:
                 *application/x-bzip2*)
                   SELECTED_EXT="bz2"
                   ;;
+                *application/x-lzip*)
+                  SELECTED_EXT="lz"
+                  ;;
+                *application/x-lzma*)
+                  SELECTED_EXT="lzma"
+                  ;;
+                *application/x-lz4*)
+                  SELECTED_EXT="lz4"
+                  ;;
+                *application/x-brotli*)
+                  SELECTED_EXT="br"
+                  ;;
+                *application/x-tar*)
+                  SELECTED_EXT="tar"
+                  ;;
+                *application/x-gtar*)
+                  SELECTED_EXT="tar"
+                  ;;
+                *application/gzip*)
+                  SELECTED_EXT="gz"
+                  ;;
+                *application/x-compress*)
+                  SELECTED_EXT="z"
+                  ;;
+                *application/x-cpio*)
+                  SELECTED_EXT="cpio"
+                  ;;
+                *application/x-arj*)
+                  SELECTED_EXT="arj"
+                  ;;
+                *application/x-cab*|*application/vnd.ms-cab-compressed*)
+                  SELECTED_EXT="cab"
+                  ;;
+                *application/x-iso9660-image*)
+                  SELECTED_EXT="iso"
+                  ;;
+                *application/x-apple-diskimage*)
+                  SELECTED_EXT="dmg"
+                  ;;
+                *application/x-xar*)
+                  SELECTED_EXT="xar"
+                  ;;
+                *application/x-udf*)
+                  SELECTED_EXT="udf"
+                  ;;
+                *application/x-virtualbox-vdi*)
+                  SELECTED_EXT="vdi"
+                  ;;
+                *application/x-vmdk*)
+                  SELECTED_EXT="vmdk"
+                  ;;
+                *application/x-archive*)
+                  SELECTED_EXT="a"
+                  ;;
                 *application/pdf*)
                   SELECTED_EXT="pdf"
                   ;;
+                *application/rtf*|*text/rtf*)
+                  SELECTED_EXT="rtf"
+                  ;;
                 *text/plain*)
                   SELECTED_EXT="txt"
+                  ;;
+                *text/markdown*)
+                  SELECTED_EXT="md"
+                  ;;
+                *text/x-log*)
+                  SELECTED_EXT="log"
                   ;;
                 *text/csv*)
                   SELECTED_EXT="csv"
@@ -109,8 +216,29 @@ jobs:
                 *application/json*)
                   SELECTED_EXT="json"
                   ;;
+                *application/ld+json*)
+                  SELECTED_EXT="jsonld"
+                  ;;
+                *application/yaml*|*text/yaml*|*text/x-yaml*)
+                  SELECTED_EXT="yaml"
+                  ;;
+                *application/toml*|*text/x-toml*)
+                  SELECTED_EXT="toml"
+                  ;;
                 *application/xml*|*text/xml*)
                   SELECTED_EXT="xml"
+                  ;;
+                *text/html*)
+                  SELECTED_EXT="html"
+                  ;;
+                *text/css*)
+                  SELECTED_EXT="css"
+                  ;;
+                *text/javascript*|*application/javascript*)
+                  SELECTED_EXT="js"
+                  ;;
+                *application/typescript*|*text/typescript*)
+                  SELECTED_EXT="ts"
                   ;;
                 *application/vnd.openxmlformats-officedocument.wordprocessingml.document*)
                   SELECTED_EXT="docx"
@@ -118,11 +246,17 @@ jobs:
                 *application/msword*)
                   SELECTED_EXT="doc"
                   ;;
+                *application/vnd.oasis.opendocument.text*)
+                  SELECTED_EXT="odt"
+                  ;;
                 *application/vnd.openxmlformats-officedocument.spreadsheetml.sheet*)
                   SELECTED_EXT="xlsx"
                   ;;
                 *application/vnd.ms-excel*)
                   SELECTED_EXT="xls"
+                  ;;
+                *application/vnd.oasis.opendocument.spreadsheet*)
+                  SELECTED_EXT="ods"
                   ;;
                 *application/vnd.openxmlformats-officedocument.presentationml.presentation*)
                   SELECTED_EXT="pptx"
@@ -130,8 +264,20 @@ jobs:
                 *application/vnd.ms-powerpoint*)
                   SELECTED_EXT="ppt"
                   ;;
+                *application/vnd.oasis.opendocument.presentation*)
+                  SELECTED_EXT="odp"
+                  ;;
+                *application/epub+zip*)
+                  SELECTED_EXT="epub"
+                  ;;
+                *application/x-mobipocket-ebook*)
+                  SELECTED_EXT="mobi"
+                  ;;
                 *video/mp4*)
                   SELECTED_EXT="mp4"
+                  ;;
+                *video/mpeg*)
+                  SELECTED_EXT="mpeg"
                   ;;
                 *video/x-matroska*)
                   SELECTED_EXT="mkv"
@@ -148,8 +294,29 @@ jobs:
                 *video/x-ms-wmv*)
                   SELECTED_EXT="wmv"
                   ;;
+                *video/x-flv*)
+                  SELECTED_EXT="flv"
+                  ;;
+                *video/3gpp*)
+                  SELECTED_EXT="3gp"
+                  ;;
+                *video/ogg*)
+                  SELECTED_EXT="ogv"
+                  ;;
+                *application/vnd.apple.mpegurl*|*application/x-mpegurl*)
+                  SELECTED_EXT="m3u8"
+                  ;;
                 *audio/mpeg*)
                   SELECTED_EXT="mp3"
+                  ;;
+                *audio/aac*)
+                  SELECTED_EXT="aac"
+                  ;;
+                *audio/x-aiff*|*audio/aiff*)
+                  SELECTED_EXT="aiff"
+                  ;;
+                *audio/amr*)
+                  SELECTED_EXT="amr"
                   ;;
                 *audio/flac*)
                   SELECTED_EXT="flac"
@@ -162,6 +329,12 @@ jobs:
                   ;;
                 *audio/ogg*)
                   SELECTED_EXT="ogg"
+                  ;;
+                *audio/webm*)
+                  SELECTED_EXT="weba"
+                  ;;
+                *audio/midi*|*audio/x-midi*)
+                  SELECTED_EXT="mid"
                   ;;
                 *image/jpeg*)
                   SELECTED_EXT="jpg"
@@ -177,6 +350,36 @@ jobs:
                   ;;
                 *image/svg+xml*)
                   SELECTED_EXT="svg"
+                  ;;
+                *image/bmp*)
+                  SELECTED_EXT="bmp"
+                  ;;
+                *image/tiff*)
+                  SELECTED_EXT="tiff"
+                  ;;
+                *image/x-icon*|*image/vnd.microsoft.icon*)
+                  SELECTED_EXT="ico"
+                  ;;
+                *image/heic*)
+                  SELECTED_EXT="heic"
+                  ;;
+                *image/heif*)
+                  SELECTED_EXT="heif"
+                  ;;
+                *image/avif*)
+                  SELECTED_EXT="avif"
+                  ;;
+                *font/ttf*|*application/x-font-ttf*)
+                  SELECTED_EXT="ttf"
+                  ;;
+                *font/otf*|*application/x-font-otf*)
+                  SELECTED_EXT="otf"
+                  ;;
+                *font/woff*)
+                  SELECTED_EXT="woff"
+                  ;;
+                *font/woff2*)
+                  SELECTED_EXT="woff2"
                   ;;
                 *application/x-rar*)
                   SELECTED_EXT="rar"
@@ -195,9 +398,6 @@ jobs:
                   ;;
                 *application/x-appimage*)
                   SELECTED_EXT="appimage"
-                  ;;
-                *application/x-archive*)
-                  SELECTED_EXT="a"
                   ;;
                 *application/x-msdownload*|*application/x-dosexec*)
                   SELECTED_EXT="exe"
@@ -223,17 +423,35 @@ jobs:
                 *application/x-pkg*)
                   SELECTED_EXT="pkg"
                   ;;
-                *application/x-tar*)
-                  SELECTED_EXT="tar"
+                *application/vnd.apple.installer+xml*)
+                  SELECTED_EXT="pkg"
                   ;;
-                *application/gzip*)
-                  SELECTED_EXT="gz"
+                *application/x-itunes-ipa*)
+                  SELECTED_EXT="ipa"
                   ;;
-                *application/x-gtar*)
-                  SELECTED_EXT="tar"
+                *application/x-apple-aspen-config*)
+                  SELECTED_EXT="mobileconfig"
                   ;;
                 *application/java-archive*)
                   SELECTED_EXT="jar"
+                  ;;
+                *application/x-java-archive-diff*)
+                  SELECTED_EXT="jardiff"
+                  ;;
+                *application/wasm*)
+                  SELECTED_EXT="wasm"
+                  ;;
+                *application/x-sharedlib*)
+                  SELECTED_EXT="so"
+                  ;;
+                *application/x-object*)
+                  SELECTED_EXT="o"
+                  ;;
+                *application/x-python-code*)
+                  SELECTED_EXT="pyc"
+                  ;;
+                *application/vnd.docker.image.rootfs.diff.tar.gzip*)
+                  SELECTED_EXT="docker.tar.gz"
                   ;;
                 *application/x-elf*)
                   SELECTED_EXT="elf"
@@ -246,7 +464,7 @@ jobs:
           }
 
           is_ytdlp_supported() {
-            yt-dlp --no-check-certificates --simulate --no-playlist "$URL" >/dev/null 2>&1
+            yt-dlp --no-check-certificates --simulate --no-playlist --cookies "cookies.txt" "$URL" >/dev/null 2>&1
           }
 
           download_ytdlp() {
@@ -257,6 +475,7 @@ jobs:
               --no-check-certificates \
               --merge-output-format mp4 \
               --no-playlist \
+              --cookies "cookies.txt" \
               -o "temp_download.%(ext)s" \
               "$URL"
 
@@ -284,7 +503,7 @@ jobs:
           if [ "$SAFE_MODE" == "true" ]; then
             FINAL_FILE="$FOLDER.$SELECTED_EXT"
           else
-            if [ -n "$NAME_NO_EXT" ] && [ "$NAME_NO_EXT" != "$RAW_NAME" ]; then
+            if [ -n "$NAME_NO_EXT" ] && [ "$NAME_NO_EXT" != "$RAW_NAME" ] && [ "$NAME_NO_EXT" != "temp_download" ]; then
               FINAL_FILE="$NAME_NO_EXT.$SELECTED_EXT"
             else
               FINAL_FILE="$FOLDER.$SELECTED_EXT"
@@ -328,3 +547,5 @@ jobs:
               git push
             fi
           done
+
+          rm -f cookies.txt
