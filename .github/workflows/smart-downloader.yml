@@ -52,6 +52,11 @@ jobs:
           URL="${{ github.event.inputs.file_url }}"
           FOLDER="${{ github.event.inputs.folder_name }}"
           SAFE_MODE="${{ github.event.inputs.safe_mode }}"
+          URL_ORIGIN=$(printf "%s" "$URL" | sed -E 's#^(https?://[^/]+).*$#\1#')
+          REFERER_URL="$URL"
+          if [ -n "$URL_ORIGIN" ]; then
+            REFERER_URL="$URL_ORIGIN/"
+          fi
 
           download_direct() {
             echo "Detected direct file URL"
@@ -65,6 +70,9 @@ jobs:
             fi
 
             curl -k -L --fail --retry 5 \
+              -b "cookies.txt" \
+              -c "cookies.txt" \
+              -e "$REFERER_URL" \
               -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
               --progress-bar \
               -D headers.txt \
