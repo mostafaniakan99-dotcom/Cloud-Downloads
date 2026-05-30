@@ -22,18 +22,6 @@ on:
         required: true
         type: string
 
-      storage_provider:
-        required: true
-        type: string
-
-      google_drive_folder_id:
-        required: false
-        type: string
-
-      google_drive_public_links:
-        required: false
-        type: string
-
 permissions:
   contents: write
 
@@ -64,9 +52,6 @@ jobs:
           URL="${{ github.event.inputs.file_url }}"
           FOLDER="${{ github.event.inputs.folder_name }}"
           SAFE_MODE="${{ github.event.inputs.safe_mode }}"
-          STORAGE_PROVIDER="${{ github.event.inputs.storage_provider }}"
-          GOOGLE_DRIVE_FOLDER_ID="${{ github.event.inputs.google_drive_folder_id }}"
-          GOOGLE_DRIVE_PUBLIC_LINKS="${{ github.event.inputs.google_drive_public_links }}"
 
           download_direct() {
             echo "Detected direct file URL"
@@ -543,142 +528,24 @@ jobs:
             let a=a+1
           done
 
-          upload_to_github() {
-            git config user.name "OctoFetchBot"
-            git config user.email "bot@octofetch.local"
+          git config user.name "OctoFetchBot"
+          git config user.email "bot@octofetch.local"
 
-            git pull origin main || true
+          git pull origin main || true
 
-            for file in downloads/$FOLDER/*; do
-              if [ -f "$file" ]; then
-                BASENAME=$(basename "$file")
+          for file in downloads/$FOLDER/*; do
+            if [ -f "$file" ]; then
+              BASENAME=$(basename "$file")
 
-                git add "$file"
+              git add "$file"
 
-                git commit -m "Add $BASENAME" || {
-                  echo "No changes for $BASENAME"
-                  continue
-                }
+              git commit -m "Add $BASENAME" || {
+                echo "No changes for $BASENAME"
+                continue
+              }
 
-                git push
-              fi
-            done
-          }
-
-          upload_to_google_drive() {
-            if [ -z "$GOOGLE_DRIVE_FOLDER_ID" ]; then
-              echo "google_drive_folder_id is required when STORAGE_PROVIDER=google_drive"
-              exit 1
+              git push
             fi
+          done
 
-            printf "%s" "${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON }}" > google-drive-service-account.json
-            if [ ! -s "google-drive-service-account.json" ]; then
-              echo "GitHub secret GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is empty or missing."
-              exit 1
-            fi
-
-            export FOLDER GOOGLE_DRIVE_FOLDER_ID GOOGLE_DRIVE_PUBLIC_LINKS
-            python3 <<'PY'
-import base64
-import json
-import os
-import subprocess
-import time
-import urllib.parse
-import urllib.request
-import uuid
-from pathlib import Path
-
-TOKEN_URL = "https://oauth2.googleapis.com/token"
-DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink"
-DRIVE_PERMISSION_URL = "https://www.googleapis.com/drive/v3/files/{file_id}/permissions"
-SCOPE = "https://www.googleapis.com/auth/drive"
-
-def b64url(data):
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-def request_json(url, data=None, headers=None):
-    encoded = data
-    if isinstance(data, dict):
-        encoded = urllib.parse.urlencode(data).encode("utf-8")
-    req = urllib.request.Request(url, data=encoded, headers=headers or {})
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-def access_token(credentials):
-    now = int(time.time())
-    header = {"alg": "RS256", "typ": "JWT"}
-    payload = {
-        "iss": credentials["client_email"],
-        "scope": SCOPE,
-        "aud": TOKEN_URL,
-        "iat": now,
-        "exp": now + 3600,
-    }
-    unsigned = f"{b64url(json.dumps(header, separators=(',', ':')).encode())}.{b64url(json.dumps(payload, separators=(',', ':')).encode())}"
-    key_path = Path("google-drive-private-key.pem")
-    key_path.write_text(credentials["private_key"])
-    signature = subprocess.check_output(
-        ["openssl", "dgst", "-sha256", "-sign", str(key_path)],
-        input=unsigned.encode("ascii"),
-    )
-    key_path.unlink(missing_ok=True)
-    token = request_json(TOKEN_URL, {
-        "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        "assertion": f"{unsigned}.{b64url(signature)}",
-    })
-    return token["access_token"]
-
-def upload_file(token, folder_id, path):
-    metadata = {"name": path.name, "parents": [folder_id]}
-    boundary = f"octofetch-{uuid.uuid4().hex}"
-    body = b"\r\n".join([
-        f"--{boundary}".encode(),
-        b"Content-Type: application/json; charset=UTF-8",
-        b"",
-        json.dumps(metadata).encode("utf-8"),
-        f"--{boundary}".encode(),
-        b"Content-Type: application/zip",
-        b"",
-        path.read_bytes(),
-        f"--{boundary}--".encode(),
-        b"",
-    ])
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": f"multipart/related; boundary={boundary}",
-        "Content-Length": str(len(body)),
-    }
-    return request_json(DRIVE_UPLOAD_URL, body, headers)
-
-def make_public(token, file_id):
-    body = json.dumps({"role": "reader", "type": "anyone"}).encode("utf-8")
-    request_json(
-        DRIVE_PERMISSION_URL.format(file_id=file_id),
-        body,
-        {"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-    )
-
-credentials = json.loads(Path("google-drive-service-account.json").read_text())
-folder_id = os.environ["GOOGLE_DRIVE_FOLDER_ID"]
-public_links = os.environ.get("GOOGLE_DRIVE_PUBLIC_LINKS", "true").lower() != "false"
-folder = Path("downloads") / os.environ["FOLDER"]
-token = access_token(credentials)
-
-for path in sorted(folder.glob("*")):
-    if not path.is_file():
-        continue
-    uploaded = upload_file(token, folder_id, path)
-    if public_links:
-        make_public(token, uploaded["id"])
-    print(f"Uploaded to Google Drive: {uploaded['name']} ({uploaded['id']})")
-PY
-          }
-
-          if [ "$STORAGE_PROVIDER" = "google_drive" ]; then
-            upload_to_google_drive
-          else
-            upload_to_github
-          fi
-
-          rm -f cookies.txt google-drive-service-account.json
+          rm -f cookies.txt
