@@ -26,10 +26,6 @@ on:
         required: true
         type: string
 
-      google_drive_credentials_b64:
-        required: false
-        type: string
-
       google_drive_folder_id:
         required: false
         type: string
@@ -575,9 +571,9 @@ jobs:
               exit 1
             fi
 
-            printf "%s" "${{ github.event.inputs.google_drive_credentials_b64 }}" | base64 --decode > google-drive-service-account.json
+            printf "%s" "${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON }}" > google-drive-service-account.json
             if [ ! -s "google-drive-service-account.json" ]; then
-              echo "Google Drive service account JSON is empty after decoding."
+              echo "GitHub secret GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is empty or missing."
               exit 1
             fi
 
