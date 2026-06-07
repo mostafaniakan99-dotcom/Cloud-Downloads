@@ -471,13 +471,23 @@ jobs:
             echo "Using yt-dlp for supported URL"
 
             yt-dlp \
-              -f "bv*+ba/b" \
+              -f "bestvideo*+bestaudio/best" \
               --no-check-certificates \
-              --merge-output-format mp4 \
+              --merge-output-format mkv \
+              --no-keep-video \
               --no-playlist \
               --cookies "cookies.txt" \
               -o "temp_download.%(ext)s" \
               "$URL"
+
+            # If merge did not happen (e.g. ffmpeg issue), yt-dlp may leave multiple
+            # temp_download.* files; that commonly results in a video-only file being picked.
+            MATCHING_FILES=$(find . -maxdepth 1 -name "temp_download.*" | wc -l | tr -d ' ')
+            if [ "$MATCHING_FILES" -ne 1 ]; then
+              echo "yt-dlp did not produce exactly one merged media file (found $MATCHING_FILES)."
+              ls -1 temp_download.* 2>/dev/null || true
+              exit 1
+            fi
 
             DOWNLOADED_FILE=$(find . -maxdepth 1 -name "temp_download.*" | head -n 1)
 
