@@ -22,6 +22,9 @@ on:
         required: true
         type: string
 
+  schedule:
+    - cron: '0 * * * *'
+
 permissions:
   contents: write
 
@@ -559,3 +562,50 @@ jobs:
           done
 
           rm -f cookies.txt
+
+  cleanup:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cleanup expired downloads
+        shell: bash
+        run: |
+          set -e
+          shopt -s nullglob
+
+          NOW=$(date -u +%s)
+          EXPIRE_SECONDS=$((5 * 3600))
+          CLEANED=0
+
+          for dir in downloads/DL_*; do
+            if [ ! -d "$dir" ]; then
+              continue
+            fi
+
+            base=$(basename "$dir")
+            if [[ "$base" =~ ^DL_([0-9]{8}-[0-9]{6})_ ]]; then
+              created=${BASH_REMATCH[1]}
+              created_ts=$(date -u -d "${created:0:8} ${created:9:2}:${created:11:2}:${created:13:2}" +%s)
+              age=$((NOW - created_ts))
+
+              if [ "$age" -ge "$EXPIRE_SECONDS" ]; then
+                echo "Deleting expired folder: $base"
+                git rm -r "$dir" || true
+                CLEANED=$((CLEANED + 1))
+              fi
+            else
+              echo "Skipping folder with unsupported name format: $base"
+            fi
+          done
+
+          if [ "$CLEANED" -gt 0 ]; then
+            git config user.name "OctoFetchBot"
+            git config user.email "bot@octofetch.local"
+            git commit -m "Cleanup expired downloads ($CLEANED folder(s))"
+            git push
+          else
+            echo "No expired folders found."
+          fi
