@@ -22,6 +22,9 @@ on:
         required: true
         type: string
 
+  schedule:
+    - cron: '0 * * * *'
+
 permissions:
   contents: write
 
@@ -30,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup yt-dlp
         uses: AnimMouse/setup-yt-dlp@v3
@@ -463,26 +466,11 @@ jobs:
             fi
           }
 
-          is_direct_download() {
-            if [[ "$URL" =~ .(dmg|zip|rar|7z|tar|gz|bz2|xz|iso|img|exe|msi|apk|ipa|pkg|deb|rpm|bin|dat|jar|aab|xapk|apks|apkm|obb|lz|lzma|lz4|br|z|cpio|arj|cab|udf|vdi|vmdk|a|pdf|rtf|txt|md|log|csv|json|jsonld|yaml|toml|xml|html|css|js|ts|docx|doc|odt|xlsx|xls|ods|pptx|ppt|odp|epub|mobi|mp4|mpeg|mkv|avi|webm|mov|wmv|flv|3gp|ogv|m3u8|mp3|aac|aiff|amr|flac|wav|m4a|ogg|weba|mid|jpg|png|webp|gif|svg|bmp|tiff|ico|heic|heif|avif|ttf|otf|woff|woff2|snap|appimage|lnk|mobileconfig|jardiff|wasm|so|o|pyc|elf|ipsw|xar)(?.*)?$ ]]; then
-              return 0
-            fi
-            return 1
-          }
-
           is_ytdlp_supported() {
             OUTPUT=$(yt-dlp --no-check-certificates --simulate --no-playlist --cookies "cookies.txt" "$URL" 2>&1)
-            
-            # Check if it's an unsupported URL error
             if echo "$OUTPUT" | grep -q "ERROR: Unsupported URL"; then
               return 1
             fi
-            
-            # Check if yt-dlp is falling back to generic extractor (direct download indicator)
-            if echo "$OUTPUT" | grep -qi "generic"; then
-              return 1
-            fi
-            
             return 0
           }
 
@@ -490,13 +478,23 @@ jobs:
             echo "Using yt-dlp for supported URL"
 
             yt-dlp \
-              -f "bv*+ba/b" \
+              -f "bestvideo*+bestaudio/best" \
               --no-check-certificates \
-              --merge-output-format mp4 \
+              --merge-output-format mkv \
+              --no-keep-video \
               --no-playlist \
               --cookies "cookies.txt" \
               -o "temp_download.%(ext)s" \
               "$URL"
+
+            # If merge did not happen (e.g. ffmpeg issue), yt-dlp may leave multiple
+            # temp_download.* files; that commonly results in a video-only file being picked.
+            MATCHING_FILES=$(find . -maxdepth 1 -name "temp_download.*" | wc -l | tr -d ' ')
+            if [ "$MATCHING_FILES" -ne 1 ]; then
+              echo "yt-dlp did not produce exactly one merged media file (found $MATCHING_FILES)."
+              ls -1 temp_download.* 2>/dev/null || true
+              exit 1
+            fi
 
             DOWNLOADED_FILE=$(find . -maxdepth 1 -name "temp_download.*" | head -n 1)
 
@@ -512,11 +510,11 @@ jobs:
             mv "$DOWNLOADED_FILE" temp_download
           }
 
-          if is_direct_download || ! is_ytdlp_supported; then
-            echo "URL is a direct download; using curl instead of yt-dlp"
-            download_direct
-          else
+          if is_ytdlp_supported; then
             download_ytdlp
+          else
+            echo "URL is not supported by yt-dlp; using direct download"
+            download_direct
           fi
 
           if [ "$SAFE_MODE" == "true" ]; then
@@ -568,3 +566,50 @@ jobs:
           done
 
           rm -f cookies.txt
+
+  cleanup:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cleanup expired downloads
+        shell: bash
+        run: |
+          set -e
+          shopt -s nullglob
+
+          NOW=$(date -u +%s)
+          EXPIRE_SECONDS=$((5 * 3600))
+          CLEANED=0
+
+          for dir in downloads/DL_*; do
+            if [ ! -d "$dir" ]; then
+              continue
+            fi
+
+            base=$(basename "$dir")
+            if [[ "$base" =~ ^DL_([0-9]{8}-[0-9]{6})_ ]]; then
+              created=${BASH_REMATCH[1]}
+              created_ts=$(date -u -d "${created:0:8} ${created:9:2}:${created:11:2}:${created:13:2}" +%s)
+              age=$((NOW - created_ts))
+
+              if [ "$age" -ge "$EXPIRE_SECONDS" ]; then
+                echo "Deleting expired folder: $base"
+                git rm -r "$dir" || true
+                CLEANED=$((CLEANED + 1))
+              fi
+            else
+              echo "Skipping folder with unsupported name format: $base"
+            fi
+          done
+
+          if [ "$CLEANED" -gt 0 ]; then
+            git config user.name "OctoFetchBot"
+            git config user.email "bot@octofetch.local"
+            git commit -m "Cleanup expired downloads ($CLEANED folder(s))"
+            git push
+          else
+            echo "No expired folders found."
+          fi
